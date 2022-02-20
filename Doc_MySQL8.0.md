@@ -2,82 +2,65 @@
 Abans de començar el que hem de fer es instal·lar el nostre CentOS 7 a
 una màquina virtual.
 
-![](media/image1.png)
-
 Un cop hàgim instal·lat CentOS, el que hem de fer es activar la
-interfície de xarxa, ja que per defecte ve desactivada.
+interfície de xarxa, ja que per defecte ve desactivada.<br>
+```nmtui``` >> ```Modificar una connexió``` >> ```Acceptar``` >> ```Interficie``` >> ```Modificar``` >> ```Connectar de forma automàtica```
 
-![](media/image2.png)
-
-![](media/image3.png)
-
-![](media/image4.png)
-
-Es pot observar que ja en tenim IP.
-
-![](media/image5.png)
+Es pot observar que ja en tenim IP. ```ip a ```
 
 ## 1 – INSTALACIÓ MySQL 8.0.
 
 Un cop configurada la nostra màquina podem precedir amb la instal·lació.
 El primer que farem serà afegir el repositori necessari per instal·lar
-el mysql80.
-
-![](media/image6.png)
+el mysql80.<br>
+```rpm -Uvh https://repo.mysql.com/mysql80-community-release-el7-3.noarch.rpm```
 
 Per poder instal·lar la versió 8.0, hem de desactivar la possibilitat de
 que s’instal·li una altra versió. Per fer això, desactivem els
-repositoris de mysql-community.
-
-![](media/image7.png)
+repositoris de mysql-community.<br>
+```sed -i 's/enabled=1/enabled=0' /etc/yum.repos.d/mysql-community.repo```
 
 Tot seguit procedim a instal·lar el nostre mysql80. Per fer-ho, el que
 haurem de realitzar serà una actualització del repositori de GPG Keys i
-posterior ment instal·lar el servei.
-
-![](media/image8.png)
-
-![](media/image9.png)
+posterior ment instal·lar el servei.<br>
+```rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022```
+```yum --enablerepo=mysql80-community install mysql-community-server```
 
 Un cop finalitzi la instal·lació iniciarem el servei i comprovarem que
-sigui funcionant.
+sigui funcionant.<br>
+```service mysqld status``` ```service mysqld start``` ```service mysqld restart```
 
-![](media/image10.png)
 
-Dintre del fitxer ‘/etc/my.cnf’, definirem quina es la ip del nostre
-servidor amb la següent línia. Després reiniciem el servei.
-
-![](media/image11.png)
-
-![](media/image12.png)
+Dintre del fitxer ```nano /etc/my.cnf```, definirem quina es la ip del nostre
+servidor amb la següent línia. Després reiniciem el servei.<br>
+```bind-address=<IP del servidor>```<br>
+Requerit: ```service mysqld restart```
 
 Tot seguit, permetrem la connexió de la resta de màquines al nostre port
-3306 a través del nostre Firewall.
+3306 a través del nostre Firewall.<br>
+```iptables -A INPUT -i <interficie> -p tcp --destination-port 3306 -j ACCEPT```<br>
+```firewall-cmd --zone=public --add-port=3306/tcp --permanent```<br>
+```firewall-cmd --reload```
 
-![](media/image13.png)
-
-![](media/image14.png)
 
 ## 2 – SECURITZACIÓ
 
 Com al exercici anterior, hem de modificar la Política de Contrasenyes
 per tal de ficar-li al nostre usuari root el password ‘patata’. Ens
-dirigim al fitxer ‘/etc/my.cnf’ i l’editem afegint les següents línies.
-Després reiniciem el servei.
-
-![](media/image15.png)
-
-![](media/image16.png)
+dirigim al fitxer ```nano /etc/my.cnf``` i l’editem afegint les següents línies.
+Després reiniciem el servei.<br>
+```validate_password.policy=LOW```<br>
+```validate_password.length=6```<br>
+```service mysqld restart```<br>
 
 Ara hem de saber quin es el password temporal de usuari root, per
-saber-ho executem la següent comanda.
-
-![](media/image17.png)
+saber-ho executem la següent comanda.<br>
+```grep 'temporary password' /var/log/mysqld.log```
 
 Ja podem executar la instal·lació segura de mysql i canviar-li el
 password al nostre root.
+```mysql_secure_installation```
 
-![](media/image18.png)
 
 ## 3 – USUARI ASIX
 
@@ -86,41 +69,31 @@ el primer que hem de fer es canviar la política de contrasenyes de
 CentOS per tal de que ens deixi crear l’usuari en local amb el password
 requerit (patata).
 
-Executem la següent comanda.
+Executem la següent comanda.<br>
+```authconfig --passminlen=6 --update```
 
-![](media/image19.png)
+Tot seguit ens dirigim al fitxer ```nano /etc/pam.d/system-auth``` i l’editem.
+Hem de posicionar-nos a les línies que indiquen ‘password’ i comentar la
+primera línia. Despés deixar la segona no més amb sha512.<br>
+```#password     requsite     pam_pwquality.so```<br>
+```password      sufficient   pam_unix.so sha512```<br>
+```password      required     pam_deny.so```<br>
 
-Tot seguit ens dirigim al fitxer ‘/etc/pam.d/system-auth’ i l’editem.
-Hem de posicionar-nos a les línies que indiquen ‘password’ i canviar la
-primera línia.
-
-![](media/image20.png)
-
-![](media/image21.png)
-
-Procedim a crear l’usuari.
-
-![](media/image22.png)
-
-\*\* Com es pot observar, el primer cop que s’introdueix el password
-indica que el password no compleix el requisits, al segon cop accepta el
-password. Captura de inici de sessió.
-
-![](media/image23.png)
+Procedim a crear l’usuari.<br>
+```adduser asix2```<br>
+```passwd asix2```
 
 Ara crearé l’usuari al mysql, per fer això executem les següents
-sentències des de el terminal de mysql.
-
-![](media/image24.png)
-
-![](media/image25.png)
+sentències des de el <b>terminal de mysql</b>.<br>
+```CREATE USER 'asix2'@'%' IDENTIFIED BY 'patata';```<br>
+```GRANT ALL PRIVILEGES ON *.* TO 'asix2'@'%';```
+```exit```
 
 Comprovem que puguem accedir.
+```mysql -u asix2 -ppatata```
 
-![](media/image26.png)
-
-En aquest cas, no farem que l’usuari es connecti automàticament amb el
-password per defecte ‘patata’.
+<b>En aquest cas, no farem que l’usuari es connecti automàticament amb el
+password per defecte ‘patata’.</b>
 
 ## 4 – PROVA DE CONNEXIÓ.
 
@@ -132,7 +105,4 @@ Workbench](https://dev.mysql.com/downloads/workbench/)
 
 Afegim la connexió.
 
-![](media/image27.png)![](media/image28.png)
-
-![](media/image29.png)
 
