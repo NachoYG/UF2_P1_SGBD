@@ -103,6 +103,9 @@ de connectar-nos de manera remota al nostre servidor.
 [MySQL :: Download MySQL
 Workbench](https://dev.mysql.com/downloads/workbench/)
 
-Afegim la connexió.
+Primer de tot, creo la meva nova connexió al meu server.
+```MySQL Connections >> ADD >> <Set Server Info> >> Test Connection ```
+
+Si no hi han errors, ens connectem.
 
 
